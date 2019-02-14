@@ -3,14 +3,50 @@
 const express = require('express');
 const router = express.Router();
 const bcryptjs = require('bcryptjs');
+//authentication
+const auth = require('basic-auth');
 //Require models
 const {User, Course} = require('../models/models');
+
+
+///Authentication middleware
+const authenticateUser = (req, res, next) => {
+    //Parse user creds from auth header
+    const credentials = auth(req);
+    //define error message
+    let errorMessage = null;
+    if(credentials){
+        //run code check if user is in db
+        User.find({emailAddress : credentials.name})
+            .then((user) => {
+                if(user.length > 0){
+                    //check header password against hashed stored password
+                    const authenticated = bcryptjs.compareSync(credentials.pass, user[0].password);
+                    if(authenticated){
+                        //Success, put current user on the req object
+                        req.currentUser = user;
+                        next();
+                    } else {
+                        //access denied
+                        res.status(401).json({ 'Incorrect Password': 'Access Denied' });
+                    }
+                } else {
+                    res.status(401).json({ 'No user found': 'Access Denied' });
+                }
+            })
+            .catch(err => {
+                console.log(err);
+            });
+    } else {
+        res.status(401).json({ 'No email/password entered': 'Access Denied' });
+    }
+};
 
 /* ----------   Routes for api/users ---------- */
 
 //GET for /api/users
-router.get('/users', (req, res) => {
-    res.json({"text": "GET for /api/users"});
+router.get('/users', authenticateUser, (req, res) => {
+    res.json(req.currentUser);
 });
 
 //POST for /api/users
