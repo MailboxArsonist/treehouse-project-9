@@ -13,8 +13,6 @@ const {User, Course} = require('../models/models');
 const authenticateUser = (req, res, next) => {
     //Parse user creds from auth header
     const credentials = auth(req);
-    //define error message
-    let errorMessage = null;
     if(credentials){
         //run code check if user is in db
         User.find({emailAddress : credentials.name})
@@ -38,7 +36,7 @@ const authenticateUser = (req, res, next) => {
                 console.log(err);
             });
     } else {
-        res.status(401).json({ 'No email/password entered': 'Access Denied' });
+        res.sendStatus(401).json({ 'No email/password entered': 'Access Denied' });
     }
 };
 
@@ -46,6 +44,7 @@ const authenticateUser = (req, res, next) => {
 
 //GET for /api/users
 router.get('/users', authenticateUser, (req, res) => {
+    console.log(req.currentUser)
     res.json(req.currentUser);
 });
 
@@ -59,12 +58,13 @@ router.post('/users', (req, res, next) => {
         emailAddress : user.emailAddress,
         password : user.password
     })
-        .then((result => {
-            res.json(result);
-        }))
+        .then(() => {
+            res.location('/');
+            res.send(201);
+        })
         .catch(err => {
             next(err);
-        })
+        });
 });
 
 /* ----------   Routes for api/courses ---------- */
@@ -99,18 +99,57 @@ router.get('/courses/:id', (req, res, next) => {
 });
 
 //POST for /api/courses
-router.post('/courses', (req, res) => {
-    res.json({"text": `POST for /api/courses Course:${req.body.name}`});
+router.post('/courses', authenticateUser ,(req, res, next) => {
+    //Will hold the current user that was put on the req object by authUser middleware
+    const currentUser = req.currentUser[0];
+    //Will hold the data for the new course
+    const newCourse = req.body;
+    Course.create({
+        title : newCourse.title,
+        description : newCourse.description,
+        estimatedTime : newCourse.estimatedTime,
+        materialsNeeded : newCourse.materialsNeeded,
+        user : currentUser
+    })
+    .then((course) => {
+        console.log(course);
+        res.location(`/courses/${course.id}`);
+        res.sendStatus(201);
+    })
+    .catch(err => {
+        next(err);
+    })
 });
 
 //PUT for /api/courses/:id
-router.put('/courses/:id', (req, res) => {
+router.put('/courses/:id', (req, res, next) => {
     res.json({"text": `PUT for /api/courses/${req.params.id} Course: ${req.body.name}`});
 });
 
 //DELETE for /api/courses/:id
-router.delete('/courses/:id', (req, res) => {
-    res.json({"text": `DELETE for /api/courses/${req.params.id}`});
+router.delete('/courses/:id', authenticateUser, (req, res, next) => {
+    const currentUser = req.currentUser[0];
+    const courseId = req.params.id;
+    //check that userId matches courses user id
+    Course.findById(courseId)
+            .populate('user')
+            .then((course) => {
+                if(currentUser.id === course.user.id){
+                    Course.findByIdAndDelete(course.id)
+                            .then(() => {
+                                res.sendStatus(204);
+                            })
+                            .catch(err => {
+                                next(err);
+                            });
+                } else {
+                    //user doesn't own the course, cannot delete send 403 status
+                    res.sendStatus(403);
+                }
+            })
+            .catch(err => {
+                next(err);
+            });
 });
 
 
