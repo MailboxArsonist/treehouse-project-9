@@ -60,7 +60,7 @@ router.post('/users', (req, res, next) => {
     })
         .then(() => {
             res.location('/');
-            res.send(201);
+            res.sendStatus(201);
         })
         .catch(err => {
             next(err);
@@ -112,7 +112,6 @@ router.post('/courses', authenticateUser ,(req, res, next) => {
         user : currentUser
     })
     .then((course) => {
-        console.log(course);
         res.location(`/courses/${course.id}`);
         res.sendStatus(201);
     })
@@ -122,8 +121,38 @@ router.post('/courses', authenticateUser ,(req, res, next) => {
 });
 
 //PUT for /api/courses/:id
-router.put('/courses/:id', (req, res, next) => {
-    res.json({"text": `PUT for /api/courses/${req.params.id} Course: ${req.body.name}`});
+router.put('/courses/:id', authenticateUser, (req, res, next) => {
+    const currentUser = req.currentUser[0];
+    const courseId = req.params.id;
+    const updatedCourse = req.body;
+    //check that userId matches courses user id
+    Course.findById(courseId)
+            .populate('user')
+            .then((course) => {
+                if(currentUser.id === course.user.id){
+                    Course.findByIdAndUpdate(course.id, {
+                        title : updatedCourse.title,
+                        description : updatedCourse.description,
+                        estimatedTime : updatedCourse.estimatedTime,
+                        materialsNeeded : updatedCourse.materialsNeeded,
+                        user : currentUser
+
+                    }, {runValidators : true})
+                            .then(() => {
+                                //Success, course updated, send 204
+                                res.sendStatus(204);
+                            })
+                            .catch(err => {
+                                next(err);
+                            });
+                } else {
+                    //user doesn't own the course, cannot update, send 403 status
+                    res.sendStatus(403);
+                }
+            })
+            .catch(err => {
+                next(err);
+            });
 });
 
 //DELETE for /api/courses/:id
