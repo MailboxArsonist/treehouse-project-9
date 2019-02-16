@@ -3,11 +3,16 @@ const mongoose = require('mongoose');
 //Bring in Schema
 const { Schema } = mongoose;
 
+//function to validate email
+const isValidEmail = (email) => {
+    return /^[^@]+@[^@.]+\.[a-z]+$/.test(email);
+};
+
 //Define UserSchema
 const UserSchema = new Schema({
     firstName : {type : String, required : [true, 'First name required']},
     lastName : {type : String, required : [true, 'Last name required']},
-    emailAddress : {type : String, required : [true, 'Email address required']},
+    emailAddress : {type : String, required : [true, 'Email address required'], validate : {validator: isValidEmail, msg: 'Valid email required'}},
     password : {type : String, required : [true, 'Password required']}
 });
 
