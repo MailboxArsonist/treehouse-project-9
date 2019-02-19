@@ -60,8 +60,8 @@ app.use((err, req, res, next) => {
   if (enableGlobalErrorLogging) {
     console.error(`Global error handler: ${JSON.stringify(err.stack)}`);
   }
+  //Check if schema validation check set any messages on the error object, if so => 400 status
   if(err.message.includes('validation failed')){
-    console.log('true')
     err.status = 400;
   }
 
