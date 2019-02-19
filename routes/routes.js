@@ -51,16 +51,33 @@ router.get('/users', authenticateUser, (req, res) => {
 //POST for /api/users
 router.post('/users', (req, res, next) => {
     const user = req.body;
-    user.password = bcryptjs.hashSync(user.password);
-    User.create({
-        firstName : user.firstName,
-        lastName : user.lastName,
-        emailAddress : user.emailAddress,
-        password : user.password
-    })
-        .then(() => {
-            res.location('/');
-            res.sendStatus(201);
+    if(user.password && user.password !== ''){
+        user.password = bcryptjs.hashSync(user.password);
+    }
+    //check database to see if a user is already registered with email address
+    User.findOne({emailAddress : user.emailAddress})
+        .then((data) => {
+            if(data){
+                //email already exists, send error 
+                const err = new Error('Account already exists');
+                err.status = 409;
+                next(err);
+            } else{
+                //no email exists, continue to create a user
+                User.create({
+                    firstName : user.firstName,
+                    lastName : user.lastName,
+                    emailAddress : user.emailAddress,
+                    password : user.password
+                })
+                    .then(() => {
+                        res.location('/');
+                        res.sendStatus(201);
+                    })
+                    .catch(err => {
+                        next(err);
+                    });
+            }
         })
         .catch(err => {
             next(err);
@@ -72,7 +89,7 @@ router.post('/users', (req, res, next) => {
 //GET for /api/courses
 router.get('/courses', (req, res, next) => {
     Course.find()
-            .populate('user')
+            .populate({ path: 'user', select: ['firstName','lastName' ] })
             .then(function( courses, err){
                 if(err){
                     return next(err);
@@ -89,9 +106,14 @@ router.get('/courses', (req, res, next) => {
 router.get('/courses/:id', (req, res, next) => {
     const id = req.params.id;
     Course.findById(id)
-    .populate('user')
+    .populate({ path: 'user', select: ['firstName','lastName' ] })
     .then((course) => {
-        res.json(course);
+        if(!course){
+            let error = new Error('No results in db for courses');
+            return next(error);
+        } else {
+            res.json(course);
+        }
     })
     .catch(err => {
         next(err);
