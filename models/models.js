@@ -20,8 +20,8 @@ const UserSchema = new Schema({
 const CourseSchema = new Schema({
     title : {type : String, required : [true, 'Title required']},
     description : {type : String, required : [true, 'Description required']},
-    estimatedTime : {type : String, required : [true, 'Est time required']},
-    materialsNeeded : {type : String, required : [true, 'Materials Needed required']},
+    estimatedTime : {type : String},
+    materialsNeeded : {type : String},
     user : { type: Schema.Types.ObjectId, ref: 'User', required: [true, 'Course needs a user'] }
 });
 
