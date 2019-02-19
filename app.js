@@ -60,6 +60,10 @@ app.use((err, req, res, next) => {
   if (enableGlobalErrorLogging) {
     console.error(`Global error handler: ${JSON.stringify(err.stack)}`);
   }
+  if(err.message.includes('validation failed')){
+    console.log('true')
+    err.status = 400;
+  }
 
   res.status(err.status || 500).json({
     message: err.message,
